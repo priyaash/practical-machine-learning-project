@@ -1,0 +1,164 @@
+---
+title: "Practical Machine Learning new"
+author: "priya malhotra"
+date: "May 8, 2019"
+output: html_document
+---
+## Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data
+```{r}
+library(lubridate)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(gbm)
+train_in<- read.csv("C:/Users/ashishma/Downloads/pml-training.csv")
+dim(train_in)
+test_in<-read.csv("C:/Users/ashishma/Downloads/pml-testing.csv")
+dim(test_in)
+```
+
+
+So there are 19622 observations and 160 variables in training set and 20 observations and 160 variables in testing set.
+
+## Clean data
+In order to clean the data we will remove missing values , if we see data there are few columns which have most observations as NA we can remove these columns.
+
+```{r}
+train_clean<-train_in[ ,colSums(is.na(train_in)) == 0]
+dim(train_clean)
+test_clean<- test_in[ ,colSums(is.na(test_in)) == 0]
+dim(test_clean)
+
+```
+
+First seven columns are also not of much use so we can remove them.
+
+```{r}
+train_clean<- train_clean[ , -c(1:7)]
+dim(train_clean)
+test_clean<- test_clean[ , -c(1:7)]
+dim(test_clean)
+```
+
+## Preparing Data For Prediction
+
+```{r}
+set.seed(12345)
+inTrain<-createDataPartition(train_clean$classe, p = 0.7, list = FALSE)
+trainData<-train_clean[inTrain , ]
+testData<-train_clean[-inTrain , ]
+dim(trainData)
+dim(testData)
+```
+
+We can remove the variables that are near zero variance
+```{r}
+NZV <- nearZeroVar(trainData)
+trainData <- trainData[, -NZV]
+testData  <- testData[, -NZV]
+dim(trainData)
+dim(testData)
+```
+
+## Model Building
+We will predict outome for our model by using 3 different techniques:
+<li> Classification Trees </li>
+<li> Random Forest </li>
+<li> Generalized Boosted Models </li>
+
+## Prediction with Classification Trees
+
+```{r}
+set.seed(12345)
+model_tree<-rpart(classe ~ . , data = trainData, method = "class")
+fancyRpartPlot(model_tree)
+```
+
+Now using this model we will see how this is performing on our Test Data .
+
+```{r}
+predict_model_tree<- predict(model_tree, testData, type = "class")
+cm_tree<- confusionMatrix(predict_model_tree, testData$classe )
+cm_tree$table
+cm_tree$overall[1]
+```
+
+So we can see the above model gives accuracy of 0.7220051 which gives us out-of-sample-error  about .28 .
+
+## Prediction with Random Forest
+
+```{r}
+model_rf<- randomForest(classe ~ . , data = testData)
+print(model_rf)
+```
+
+Now using this model we will see how this is performing on our Test Data .
+
+```{r}
+predict_model_rf<- predict(model_rf, testData, type = "class")
+cm_rf<-confusionMatrix(predict_model_rf,testData$classe)
+cm_rf$table
+cm_rf$overall[1]
+
+```
+
+
+So we can see the above model gives accuracy of 0.9830076 which gives us out-of-sample-error about .02 .
+ 
+## Prediction with Gradient Boosting Machine
+
+```{r}
+model_gbm<- train(classe ~ . , data = trainData, method = "gbm", trControl = trainControl(method = "repeatedcv", number = 5, repeats = 1), verbose = FALSE)
+print(model_gbm)
+```
+
+Now using this model we will see how this is performing on our Test Data .
+
+```{r}
+predict_model_gbm<- predict(model_gbm, testData)
+cm_gbm<-confusionMatrix(predict_model_gbm,testData$classe)
+cm_gbm$table
+cm_gbm$overall[1]
+
+```
+
+So we can see the above model gives accuracy of 0.9564996 which gives us out-of-sample-error about .05 .
+
+## Conclusion
+We have observed out of three models our most accurate model come out to be Random Forest model, so we will use this model to predict value of classe for test_clean.
+
+```{r}
+Result<- predict(model_rf, test_clean)
+Result
+```
+
+
+```{r setup}
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
